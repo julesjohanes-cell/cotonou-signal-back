@@ -1,0 +1,51 @@
+# Lancement : docker compose up
+# Le dossier backend/ est monté dans le conteneur : toute modification de code recharge le serveur
+# automatiquement, sans arrêter ni relancer quoi que ce soit (voir docs/dev-environment.md).
+
+name: cotonou-signale
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: cotonou
+      POSTGRES_USER: cotonou
+      POSTGRES_PASSWORD: cotonou
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Pour consulter la base avec un outil externe (DBeaver, pgAdmin), décommenter :
+    # ports:
+    #   - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cotonou -d cotonou"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false # le fichier .env est facultatif : tout a une valeur par défaut
+    environment:
+      DATABASE_URL: postgis://cotonou:cotonou@db:5432/cotonou
+    volumes:
+      - ./backend:/app # code en direct (rechargement automatique)
+      - ./docs:/docs # pour générer docs/openapi.yaml depuis le conteneur
+      - media:/data/media # photos envoyées (conservées entre les redémarrages)
+    ports:
+      - "${WEB_PORT:-8000}:8000" # si le port 8000 est déjà pris : WEB_PORT=8001 dans .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Le service du front (Next.js) sera ajouté ici par l'équipe front :
+  # web-front:
+  #   build: ./frontend
+  #   ports: ["3000:3000"]
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+
+volumes:
+  pgdata:
+  media:

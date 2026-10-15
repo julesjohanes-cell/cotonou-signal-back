@@ -1,0 +1,4 @@
+# Charge les règles du projet en lecture seule dans chaque session Aider
+read:
+  - AGENTS.md
+  - CONVENTIONS.md

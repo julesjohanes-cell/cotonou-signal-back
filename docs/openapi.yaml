@@ -1,0 +1,741 @@
+openapi: 3.0.3
+info:
+  title: Cotonou Signale · API
+  version: 0.1.0
+  description: 'API de signalement citoyen d''insalubrité à Cotonou. Toute erreur
+    a la forme {"error": {"code", "message", "details"}}. GeoJSON : [longitude, latitude].'
+paths:
+  /api/v1/agent/reports:
+    get:
+      operationId: agent_reports_retrieve
+      summary: Signalements des services de l'agent (avec verdict IA)
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Nombre maximum de résultats (défaut 100, max 500)
+      - in: query
+        name: offset
+        schema:
+          type: integer
+        description: Décalage (pagination)
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filtrer sur un statut
+      tags:
+      - agent
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReportList'
+          description: ''
+  /api/v1/agent/reports/{tracking_code}:
+    patch:
+      operationId: agent_reports_partial_update
+      summary: Changer le statut d'un signalement (published → in_progress → resolved),
+        avec une note
+      parameters:
+      - in: path
+        name: tracking_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - agent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentStatusRequest'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReport'
+          description: ''
+  /api/v1/agent/reports/{tracking_code}/after-photo:
+    post:
+      operationId: agent_reports_after_photo_create
+      summary: Ajouter la photo « après » et passer en resolved
+      parameters:
+      - in: path
+        name: tracking_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - agent
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AfterPhotoRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReport'
+          description: ''
+  /api/v1/auth/login:
+    post:
+      operationId: auth_login_create
+      summary: 'Connexion d''un agent (renvoie un jeton à envoyer dans « Authorization:
+        Token … »)'
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+          description: ''
+  /api/v1/capture-sessions:
+    post:
+      operationId: capture_sessions_create
+      summary: Créer un lien de capture à usage unique (parcours web)
+      tags:
+      - capture-sessions
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureSessionCreated'
+          description: ''
+  /api/v1/capture-sessions/{token}:
+    get:
+      operationId: capture_sessions_retrieve
+      summary: Vérifier qu'un lien de capture est valide avant d'afficher la page
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - capture-sessions
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureSessionState'
+          description: ''
+  /api/v1/categories:
+    get:
+      operationId: categories_list
+      summary: Les catégories et leur routage vers les services
+      tags:
+      - categories
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/health:
+    get:
+      operationId: health_retrieve
+      summary: Vérifie que l'API, la base et PostGIS répondent
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/reports:
+    get:
+      operationId: reports_geojson
+      summary: Signalements publiés au format GeoJSON (carte)
+      parameters:
+      - in: query
+        name: bbox
+        schema:
+          type: string
+        description: min_lng,min_lat,max_lng,max_lat
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: Slug d'une catégorie
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Statuts séparés par des virgules (published, in_progress, resolved)
+      tags:
+      - reports
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: reports_create
+      description: '201 : publié (ou en modération pour « autre »). 200 : doublon
+        fusionné (+1). 422 : rejeté par une vérification (voir les codes d''erreur
+        du contrat). Un rejet n''est pas enregistré et ne consomme pas le lien de
+        capture.'
+      summary: Créer un signalement (vérifie, puis publie ou rejette)
+      tags:
+      - reports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportCreated'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportCreated'
+          description: ''
+  /api/v1/reports/{tracking_code}:
+    get:
+      operationId: reports_retrieve
+      summary: Détail et historique d'un signalement (suivi citoyen)
+      parameters:
+      - in: path
+        name: tracking_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - reports
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetail'
+          description: ''
+  /api/v1/webhooks/whatsapp:
+    get:
+      operationId: webhooks_whatsapp_retrieve
+      summary: Vérification du webhook par Meta (renvoie le hub.challenge)
+      parameters:
+      - in: query
+        name: hub.challenge
+        schema:
+          type: string
+        description: Texte à renvoyer tel quel
+      - in: query
+        name: hub.mode
+        schema:
+          type: string
+        description: Toujours « subscribe »
+      - in: query
+        name: hub.verify_token
+        schema:
+          type: string
+        description: Doit égaler WHATSAPP_VERIFY_TOKEN
+      tags:
+      - webhooks
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+          description: ''
+    post:
+      operationId: webhooks_whatsapp_create
+      summary: Réception des messages WhatsApp (signature X-Hub-Signature-256 vérifiée)
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookAck'
+          description: ''
+components:
+  schemas:
+    AfterPhotoRequest:
+      type: object
+      properties:
+        photo:
+          type: string
+          format: binary
+        note:
+          type: string
+          default: ''
+          maxLength: 280
+      required:
+      - photo
+    AgentReport:
+      type: object
+      description: 'Vue de l''agent : le détail public + ce dont la mairie a besoin
+        pour traiter (verdict IA, canal).'
+      properties:
+        tracking_code:
+          type: string
+          maxLength: 12
+        category:
+          type: string
+          readOnly: true
+        category_label:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ReportStatusEnum'
+        description:
+          type: string
+          maxLength: 280
+        lat:
+          type: number
+          format: double
+          readOnly: true
+        lng:
+          type: number
+          format: double
+          readOnly: true
+        photo_url:
+          type: string
+          readOnly: true
+        photo_after_url:
+          type: string
+          nullable: true
+          readOnly: true
+        support_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusChange'
+          readOnly: true
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+        ai_verdict: {}
+      required:
+      - category
+      - category_label
+      - created_at
+      - history
+      - lat
+      - lng
+      - photo_after_url
+      - photo_url
+      - tracking_code
+      - updated_at
+    AgentReportList:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentReport'
+      required:
+      - count
+      - results
+    AgentStatusEnum:
+      enum:
+      - in_progress
+      - resolved
+      type: string
+      description: |-
+        * `in_progress` - in_progress
+        * `resolved` - resolved
+    CaptureSessionCreated:
+      type: object
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        capture_url:
+          type: string
+      required:
+      - capture_url
+      - expires_at
+      - token
+    CaptureSessionState:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - expires_at
+      - valid
+    Category:
+      type: object
+      properties:
+        slug:
+          type: string
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        label:
+          type: string
+          title: Libellé
+          maxLength: 80
+        services:
+          type: array
+          items:
+            type: string
+            title: Nom
+          readOnly: true
+        needs_moderation:
+          type: boolean
+          title: Passe par la modération
+      required:
+      - label
+      - services
+      - slug
+    ChannelEnum:
+      enum:
+      - web
+      - whatsapp
+      type: string
+      description: |-
+        * `web` - Web
+        * `whatsapp` - WhatsApp
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+        database:
+          type: string
+        postgis:
+          type: string
+      required:
+      - database
+      - postgis
+      - status
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    LoginResult:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/LoginUser'
+      required:
+      - token
+      - user
+    LoginUser:
+      type: object
+      properties:
+        username:
+          type: string
+        services:
+          type: array
+          items:
+            type: string
+      required:
+      - services
+      - username
+    PatchedAgentStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatusEnum'
+        note:
+          type: string
+          default: ''
+          maxLength: 280
+    ReportCreateRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          minLength: 1
+          description: Slug de la catégorie, ex. depot_sauvage
+        description:
+          type: string
+          default: ''
+          maxLength: 280
+        photo:
+          type: string
+          format: binary
+          description: Photo prise sur place (JPEG, PNG ou WebP, 8 Mo max)
+        point_lat:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+          description: Latitude du point du problème
+        point_lng:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+          description: Longitude du point du problème
+        device_lat:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+          description: Latitude du téléphone
+        device_lng:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+          description: Longitude du téléphone
+        device_accuracy_m:
+          type: number
+          format: double
+          minimum: 0
+          description: Précision GPS du téléphone, en mètres
+        capture_token:
+          type: string
+          default: ''
+      required:
+      - category
+      - device_accuracy_m
+      - device_lat
+      - device_lng
+      - photo
+      - point_lat
+      - point_lng
+    ReportCreated:
+      type: object
+      description: Réponse de POST /reports (documentation du contrat).
+      properties:
+        tracking_code:
+          type: string
+        status:
+          type: string
+        duplicate:
+          type: boolean
+        support_count:
+          type: integer
+        message:
+          type: string
+      required:
+      - duplicate
+      - message
+      - status
+      - support_count
+      - tracking_code
+    ReportDetail:
+      type: object
+      description: 'Suivi citoyen : détail public d''un signalement.'
+      properties:
+        tracking_code:
+          type: string
+          maxLength: 12
+        category:
+          type: string
+          readOnly: true
+        category_label:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ReportStatusEnum'
+        description:
+          type: string
+          maxLength: 280
+        lat:
+          type: number
+          format: double
+          readOnly: true
+        lng:
+          type: number
+          format: double
+          readOnly: true
+        photo_url:
+          type: string
+          readOnly: true
+        photo_after_url:
+          type: string
+          nullable: true
+          readOnly: true
+        support_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusChange'
+          readOnly: true
+      required:
+      - category
+      - category_label
+      - created_at
+      - history
+      - lat
+      - lng
+      - photo_after_url
+      - photo_url
+      - tracking_code
+      - updated_at
+    ReportStatusEnum:
+      enum:
+      - pending
+      - rejected
+      - moderation
+      - published
+      - in_progress
+      - resolved
+      type: string
+      description: |-
+        * `pending` - En cours de vérification
+        * `rejected` - Rejeté
+        * `moderation` - En modération
+        * `published` - Publié
+        * `in_progress` - Pris en charge
+        * `resolved` - Résolu
+    StatusChange:
+      type: object
+      properties:
+        from_status:
+          type: string
+          maxLength: 12
+        to_status:
+          type: string
+          maxLength: 12
+        note:
+          type: string
+          maxLength: 280
+        at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - at
+      - to_status
+    WebhookAck:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

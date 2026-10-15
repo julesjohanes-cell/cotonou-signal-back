@@ -1,0 +1,6 @@
+# Évite les fins de ligne Windows (CRLF) dans les scripts lancés dans Docker
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

@@ -1,0 +1,13 @@
+---
+description: Règles du projet Cotonou Signale
+alwaysApply: true
+---
+
+Les règles du projet sont dans `AGENTS.md` à la racine (détails techniques dans `backend/AGENTS.md` et `frontend/AGENTS.md`). Lis-les avant toute tâche.
+
+Rappel des cinq règles essentielles :
+1. Le contrat `docs/openapi.yaml` est la seule source de vérité : n'invente ni champ, ni endpoint, ni code d'erreur.
+2. Donne un plan en 5 lignes et attends l'accord avant de coder.
+3. Diff minimal, dans le périmètre de la tâche, sans nouvelle dépendance.
+4. GeoJSON : `[longitude, latitude]`. Aucun champ privé dans l'API publique.
+5. Après deux échecs sur le même problème, arrête-toi et demande de l'aide.
