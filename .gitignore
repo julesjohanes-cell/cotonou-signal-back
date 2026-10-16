@@ -1,0 +1,37 @@
+# Ignorer tout par défaut
+/*
+
+# Autoriser uniquement frontend et backend
+!/frontend/
+!/backend/
+
+# Exceptions pour le monorepo racine (fichiers de configuration indispensables)
+!/.gitignore
+!/README.md
+!/package.json
+
+# --- Règles internes pour backend/ ---
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/*/__pycache__/
+backend/**/*.py[cod]
+backend/*.sqlite3
+backend/*.db
+backend/.env
+backend/.env*.local
+
+# --- Règles internes pour frontend/ ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/.env.local
+frontend/.env*.local
+
+# Logs et fichiers système
+*.log
+.DS_Store

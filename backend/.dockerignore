@@ -1,0 +1,15 @@
+# Ne rien copier de ces éléments dans l'image de build
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+db.sqlite3
+db.sqlite3-journal
+media/
+*.log
+.git
+.gitignore
+.DS_Store

@@ -1,0 +1,11 @@
+[
+  {"model": "reports.category", "pk": 1, "fields": {"slug": "depot_sauvage", "label": "Dépôt sauvage d'ordures", "services": [1], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 2, "fields": {"slug": "caniveau_bouche", "label": "Caniveau bouché", "services": [2], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 3, "fields": {"slug": "brulage_dechets", "label": "Brûlage de déchets", "services": [1, 6], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 4, "fields": {"slug": "eau_stagnante", "label": "Eau stagnante ou inondation", "services": [2], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 5, "fields": {"slug": "chaussee_degradee", "label": "Chaussée dégradée", "services": [3], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 6, "fields": {"slug": "regard_dalle", "label": "Regard ou dalle dangereux", "services": [3], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 7, "fields": {"slug": "eclairage_panne", "label": "Éclairage public en panne", "services": [4], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 8, "fields": {"slug": "vehicule_abandonne", "label": "Véhicule ou objet abandonné", "services": [5], "needs_moderation": false}},
+  {"model": "reports.category", "pk": 9, "fields": {"slug": "autre", "label": "Autre problème", "services": [], "needs_moderation": true}}
+]
