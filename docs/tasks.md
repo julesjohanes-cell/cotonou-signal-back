@@ -23,7 +23,7 @@ Le découpage en petites tâches avec prompts de départ est dans `docs/backlog.
 ## Équipe 5 · `verification/`
 - [ ] Vérification 6 · `photo_hash.check_photo_not_reused` → `PHOTO_REUSED`
 - [x] Vérification 8 · `duplicates.check_duplicate` : renseigner `sub.duplicate_of` (le « +1 » est géré par `services.py`)
-- [ ] Vérification 7 · `vision.check_photo_content` : verdict (simulé d'abord), `PHOTO_SCREENSHOT`, `PHOTO_MISMATCH`
+- [x] Vérification 7 · `vision.check_photo_content` : verdict (simulé d'abord), `PHOTO_SCREENSHOT`, `PHOTO_MISMATCH`
 - [ ] Brancher le vrai modèle dans `LiveVisionClient` (`VERIFY_MODE=live`), JSON strict, délai maximal
 - [ ] Décision à prendre avec un mentor : que faire si le modèle ne répond pas à temps (voir `docs/verification.md`)
 

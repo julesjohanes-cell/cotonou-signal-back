@@ -7,11 +7,36 @@ donc Δlng ≈ 0,00018 ≈ 20 m et Δlng ≈ 0,0018 ≈ 200 m.
 """
 
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.utils import timezone
 
 from reports.models import Report
 from reports.tests import ApiTestCase, photo_file
+
+
+def fake_verdict(**overrides):
+    """Verdict de base pour les tests de seuil (même structure que la réponse du modèle de vision)."""
+    verdict = {
+        "matches_category": True,
+        "is_screenshot_or_screen_photo": False,
+        "is_public_outdoor_space": True,
+        "contains_identifiable_person": False,
+        "confidence": 0.9,
+        "reason": "Verdict de test.",
+    }
+    verdict.update(overrides)
+    return verdict
+
+
+class FakeVisionClient:
+    """Client renvoyant un verdict fixe (le client simulé est bloqué à 0,9)."""
+
+    def __init__(self, verdict):
+        self.verdict = verdict
+
+    def verify(self, photo_bytes, filename, category_label):
+        return self.verdict
 
 
 class DuplicateCheckTest(ApiTestCase):
@@ -112,3 +137,33 @@ class PhotoContentCheckTest(ApiTestCase):
         self.assertTrue(verdict["matches_category"])
         self.assertFalse(verdict["is_screenshot_or_screen_photo"])
         self.assertEqual(verdict["confidence"], 0.9)
+
+    def test_low_confidence_is_rejected(self):
+        # Confiance 0,4 < seuil 0,6 (AI_MIN_CONFIDENCE) : refus
+        with patch(
+            "verification.vision.get_client", return_value=FakeVisionClient(fake_verdict(confidence=0.4))
+        ):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_MISMATCH")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_category_mismatch_is_rejected(self):
+        # La photo ne correspond pas à la catégorie déclarée (confiance haute, ça ne change rien)
+        with patch(
+            "verification.vision.get_client",
+            return_value=FakeVisionClient(fake_verdict(matches_category=False)),
+        ):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_MISMATCH")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_confidence_at_threshold_is_accepted(self):
+        # Confiance exactement égale au seuil : « ≥ 0,6 » est accepté
+        with patch(
+            "verification.vision.get_client", return_value=FakeVisionClient(fake_verdict(confidence=0.6))
+        ):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Report.objects.get().ai_verdict["confidence"], 0.6)

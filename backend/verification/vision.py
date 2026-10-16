@@ -47,14 +47,14 @@ def get_client():
     return LiveVisionClient() if settings.VERIFY_MODE == "live" else MockVisionClient()
 
 
-# 7 ─ Contenu de la photo ────────────────────────────────────────────────────────────────── ✅ FAIT (base)
+# 7 ─ Contenu de la photo ────────────────────────────────────────────────────────────────── ✅ FAIT
 def check_photo_content(sub):
     """
     1. `verdict = get_client().verify(octets_de_la_photo, sub.photo.name, sub.category.label)`
     2. Stocker le verdict : `sub.ai_verdict = verdict` (jamais exposé au public, avec sa `reason`)
     3. Refuser :
          - capture d'écran → Rejection("PHOTO_SCREENSHOT")
-         - (V-5) ne correspond pas ou confiance < settings.AI_MIN_CONFIDENCE → Rejection("PHOTO_MISMATCH")
+         - ne correspond pas ou confiance < settings.AI_MIN_CONFIDENCE → Rejection("PHOTO_MISMATCH")
     """
     sub.photo.seek(0)
     verdict = get_client().verify(sub.photo.read(), sub.photo.name, sub.category.label)
@@ -62,3 +62,5 @@ def check_photo_content(sub):
     sub.ai_verdict = verdict
     if verdict.get("is_screenshot_or_screen_photo"):
         raise Rejection("PHOTO_SCREENSHOT")
+    if not verdict.get("matches_category") or verdict.get("confidence") < settings.AI_MIN_CONFIDENCE:
+        raise Rejection("PHOTO_MISMATCH")
