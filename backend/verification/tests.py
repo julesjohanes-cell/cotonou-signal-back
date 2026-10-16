@@ -81,3 +81,34 @@ class DuplicateCheckTest(ApiTestCase):
         self.assertFalse(body["duplicate"])
         self.assertEqual(body["support_count"], 1)
         self.assertEqual(Report.objects.count(), 2)
+
+
+class PhotoContentCheckTest(ApiTestCase):
+    """Vérification 7 : capture d'écran refusée, verdict enregistré en base (jamais renvoyé au public)."""
+
+    def test_screenshot_is_rejected_and_nothing_is_saved(self):
+        # Le client simulé (VERIFY_MODE=mock) reconnaît les captures d'écran au nom du fichier
+        response = self.post_report(photo=photo_file(name="screenshot.jpg"))
+        self.assertEqual(response.status_code, 422, response.content)
+        error = response.json()["error"]
+        self.assertEqual(error["code"], "PHOTO_SCREENSHOT")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_verdict_is_saved_on_success(self):
+        response = self.post_report()
+        self.assertEqual(response.status_code, 201, response.content)
+        verdict = Report.objects.get().ai_verdict
+        self.assertEqual(
+            sorted(verdict),
+            [
+                "confidence",
+                "contains_identifiable_person",
+                "is_public_outdoor_space",
+                "is_screenshot_or_screen_photo",
+                "matches_category",
+                "reason",
+            ],
+        )
+        self.assertTrue(verdict["matches_category"])
+        self.assertFalse(verdict["is_screenshot_or_screen_photo"])
+        self.assertEqual(verdict["confidence"], 0.9)

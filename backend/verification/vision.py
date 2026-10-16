@@ -13,7 +13,7 @@ import logging
 
 from django.conf import settings
 
-from config.errors import Rejection  # noqa: F401  (à utiliser dans la vérification)
+from config.errors import Rejection
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +47,18 @@ def get_client():
     return LiveVisionClient() if settings.VERIFY_MODE == "live" else MockVisionClient()
 
 
-# 7 ─ Contenu de la photo ────────────────────────────────────────────────────────────────── ⬜ À FAIRE
+# 7 ─ Contenu de la photo ────────────────────────────────────────────────────────────────── ✅ FAIT (base)
 def check_photo_content(sub):
     """
     1. `verdict = get_client().verify(octets_de_la_photo, sub.photo.name, sub.category.label)`
-       (lire les octets avec `sub.photo.read()` puis `sub.photo.seek(0)`)
-    2. Stocker le verdict : `sub.ai_verdict = verdict`
+    2. Stocker le verdict : `sub.ai_verdict = verdict` (jamais exposé au public, avec sa `reason`)
     3. Refuser :
-         - capture d'écran            → Rejection("PHOTO_SCREENSHOT")
-         - ne correspond pas / confiance < settings.AI_MIN_CONFIDENCE → Rejection("PHOTO_MISMATCH")
-    4. Réponse mal formée ou délai dépassé : NE PAS deviner. Décision à prendre avec l'équipe (voir docs/verification.md).
-    Ne jamais renvoyer `reason` ni le verdict au public.
+         - capture d'écran → Rejection("PHOTO_SCREENSHOT")
+         - (V-5) ne correspond pas ou confiance < settings.AI_MIN_CONFIDENCE → Rejection("PHOTO_MISMATCH")
     """
-    return  # TODO équipe 5
+    sub.photo.seek(0)
+    verdict = get_client().verify(sub.photo.read(), sub.photo.name, sub.category.label)
+    sub.photo.seek(0)  # remet le curseur : la photo sera sauvegardée ensuite (services.py)
+    sub.ai_verdict = verdict
+    if verdict.get("is_screenshot_or_screen_photo"):
+        raise Rejection("PHOTO_SCREENSHOT")
