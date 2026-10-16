@@ -6,6 +6,10 @@ les aides d'envoi. Les coordonnées repartent de POINT : à 6° de latitude, 1°
 donc Δlng ≈ 0,00018 ≈ 20 m et Δlng ≈ 0,0018 ≈ 200 m.
 """
 
+from datetime import timedelta
+
+from django.utils import timezone
+
 from reports.models import Report
 from reports.tests import ApiTestCase, photo_file
 
@@ -46,6 +50,32 @@ class DuplicateCheckTest(ApiTestCase):
             device_lng=2.3929,
             photo=photo_file(color="red"),
         )
+        self.assertEqual(second.status_code, 201, second.content)
+        body = second.json()
+        self.assertFalse(body["duplicate"])
+        self.assertEqual(body["support_count"], 1)
+        self.assertEqual(Report.objects.count(), 2)
+
+    def test_different_category_is_not_a_duplicate(self):
+        # Même point, mais catégorie différente : pas de fusion
+        self.assertEqual(self.post_report().status_code, 201)  # dépôt sauvage
+
+        second = self.post_report(category="caniveau_bouche", photo=photo_file(color="red"))
+        self.assertEqual(second.status_code, 201, second.content)
+        body = second.json()
+        self.assertFalse(body["duplicate"])
+        self.assertEqual(body["support_count"], 1)
+        self.assertEqual(Report.objects.count(), 2)
+
+    def test_old_report_is_not_a_duplicate(self):
+        # Même point et même catégorie, mais le premier signalement a 40 jours
+        # (fenêtre : DUPLICATE_DAYS = 30) : pas de fusion.
+        self.assertEqual(self.post_report().status_code, 201)
+        # created_at est auto_now_add : on le recule via l'update() du queryset
+        old = Report.objects.get()
+        Report.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=40))
+
+        second = self.post_report(photo=photo_file(color="red"))
         self.assertEqual(second.status_code, 201, second.content)
         body = second.json()
         self.assertFalse(body["duplicate"])
