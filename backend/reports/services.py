@@ -15,6 +15,19 @@ from .models import CaptureSession, Report, StatusChange
 from .utils import sha256_of_file
 
 
+def _send_whatsapp_confirmation(session, report):
+    """
+    W-5 : Envoie la confirmation de suivi sur WhatsApp si la session a un numéro.
+    Le numéro est effacé après envoi pour respecter la règle de non-conservation.
+    """
+    if session and session.channel == Report.Channel.WHATSAPP and session.phone_number:
+        from whatsapp.client import send_confirmation
+
+        send_confirmation(session.phone_number, report.tracking_code)
+        # Effacer le numéro après envoi (règle de sécurité : ne pas conserver)
+        CaptureSession.objects.filter(pk=session.pk).update(phone_number="")
+
+
 @transaction.atomic
 def create_report(data):
     """
@@ -52,6 +65,8 @@ def create_report(data):
     if submission.duplicate_of is not None:
         Report.objects.filter(pk=submission.duplicate_of.pk).update(support_count=F("support_count") + 1)
         submission.duplicate_of.refresh_from_db()
+        # W-5 : confirmation WhatsApp même pour un doublon
+        _send_whatsapp_confirmation(session, submission.duplicate_of)
         return submission.duplicate_of, True
 
     status = Report.Status.MODERATION if submission.category.needs_moderation else Report.Status.PUBLISHED
@@ -71,4 +86,6 @@ def create_report(data):
         reporter_ref=session.reporter_ref if session else "",
     )
     StatusChange.objects.create(report=report, from_status="", to_status=status, note="Signalement reçu")
+    # W-5 : confirmation WhatsApp pour un nouveau signalement
+    _send_whatsapp_confirmation(session, report)
     return report, False

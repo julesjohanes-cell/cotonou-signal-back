@@ -143,16 +143,24 @@ class CaptureSession(models.Model):
     token = models.CharField(max_length=64, unique=True)
     channel = models.CharField(max_length=10, choices=Report.Channel.choices, default=Report.Channel.WEB)
     reporter_ref = models.CharField(max_length=64, blank=True)
+    phone_number = models.CharField(
+        "numéro WhatsApp (temporaire)",
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Stocké temporairement pour envoyer la confirmation WhatsApp, effacé après usage.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
 
     @classmethod
-    def create_for(cls, channel=Report.Channel.WEB, reporter_ref=""):
+    def create_for(cls, channel=Report.Channel.WEB, reporter_ref="", phone_number=""):
         return cls.objects.create(
             token=secrets.token_urlsafe(24),
             channel=channel,
             reporter_ref=reporter_ref,
+            phone_number=phone_number,
             expires_at=timezone.now() + timedelta(minutes=settings.CAPTURE_TOKEN_TTL_MIN),
         )
 
