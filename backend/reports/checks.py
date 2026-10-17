@@ -5,7 +5,7 @@ Règle : une vérification reçoit la `Submission`, ne renvoie rien, et lève `R
 Le message par défaut de chaque code est dans config/errors.py ; `details` est facultatif.
 Les seuils viennent de `django.conf.settings` (jamais en dur ici).
 
-État actuel :  1 ✅ faite   2 ⬜ à faire   3 ⬜ à faire   4 ⬜ à faire   5 ✅ faite (exemple de référence)
+État actuel :  1 ✅ faite   2 ✅ faite   3 ✅ faite   4 ✅ faite   5 ✅ faite (exemple de référence)
 """
 
 from django.conf import settings
