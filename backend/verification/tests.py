@@ -6,9 +6,12 @@ les aides d'envoi. Les coordonnées repartent de POINT : à 6° de latitude, 1°
 donc Δlng ≈ 0,00018 ≈ 20 m et Δlng ≈ 0,0018 ≈ 200 m.
 """
 
+import json
+import socket
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.test import override_settings
 from django.utils import timezone
 
 from reports.models import Report
@@ -167,3 +170,37 @@ class PhotoContentCheckTest(ApiTestCase):
             response = self.post_report()
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(Report.objects.get().ai_verdict["confidence"], 0.6)
+
+
+def _live_body(content):
+    """Réponse du type OpenAI attendue par LiveVisionClient (choices[0].message.content)."""
+    return {"choices": [{"message": {"content": content}}]}
+
+
+@override_settings(VERIFY_MODE="live", VISION_API_KEY="test-key-dev")
+class LiveVisionClientTest(ApiTestCase):
+    """V-6 : vrai client en mode live simulé — faux transport, aucun réseau, aucune clé réelle."""
+
+    def test_valid_live_verdict_publishes(self):
+        with patch(
+            "verification.vision._post_json", return_value=_live_body(json.dumps(fake_verdict()))
+        ):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Report.objects.get().ai_verdict, fake_verdict())
+
+    def test_invalid_live_json_is_rejected(self):
+        with patch(
+            "verification.vision._post_json", return_value=_live_body("bonjour, ce n'est pas du JSON")
+        ):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_MISMATCH")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_timeout_is_rejected(self):
+        with patch("verification.vision._post_json", side_effect=socket.timeout("délai dépassé")):
+            response = self.post_report()
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_MISMATCH")
+        self.assertEqual(Report.objects.count(), 0)
