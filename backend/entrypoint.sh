@@ -8,6 +8,9 @@ python manage.py migrate --noinput
 echo "→ Chargement des catégories et services"
 python manage.py loaddata categories
 
+echo "→ Chargement du polygone de Cotonou"
+python manage.py load_zone /docs/cotonou.geojson || echo "  (pas de fichier /docs/cotonou.geojson — bbox provisoire)"
+
 if [ "${SEED_DEMO:-true}" = "true" ]; then
     echo "→ Données de démonstration (comptes agents et signalements fictifs)"
     python manage.py seed_demo
