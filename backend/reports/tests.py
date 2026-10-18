@@ -85,6 +85,20 @@ class PublicEndpointsTest(ApiTestCase):
         self.assertEqual(self.client.get(f"{API}/categories/").status_code, 200)
 
 
+class IsInCotonouTest(ApiTestCase):
+    """Vérifie que is_in_cotonou fonctionne avec la bbox (aucune zone chargée en base)."""
+
+    def test_point_in_cotonou_is_accepted(self):
+        from reports.geo import is_in_cotonou
+
+        self.assertTrue(is_in_cotonou(6.3703, 2.3912))  # centre de Cotonou
+
+    def test_point_at_sea_is_rejected(self):
+        from reports.geo import is_in_cotonou
+
+        self.assertFalse(is_in_cotonou(6.37, 2.0))  # en mer, hors bbox
+
+
 class CreateReportTest(ApiTestCase):
     def test_happy_path_publishes(self):
         response = self.post_report()
@@ -117,6 +131,40 @@ class CreateReportTest(ApiTestCase):
         self.assertEqual(error["code"], "TOO_FAR")
         self.assertGreater(error["details"]["distance_m"], 100)
         self.assertEqual(Report.objects.count(), 0)
+
+    def test_gps_inaccurate_is_rejected(self):
+        response = self.post_report(device_accuracy_m=80)
+        self.assertEqual(response.status_code, 422)
+        error = response.json()["error"]
+        self.assertEqual(error["code"], "GPS_INACCURATE")
+        self.assertEqual(error["details"]["accuracy_m"], 80)
+        self.assertEqual(error["details"]["max_m"], 50)
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_out_of_zone_is_rejected(self):
+        # Ouidah est hors de Cotonou
+        response = self.post_report(device_lat=6.36, device_lng=2.08, point_lat=6.36, point_lng=2.08)
+        self.assertEqual(response.status_code, 422)
+        error = response.json()["error"]
+        self.assertEqual(error["code"], "OUT_OF_ZONE")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_photo_invalid_format_is_rejected(self):
+        # un fichier texte renommé en .jpg
+        fake = SimpleUploadedFile("fake.jpg", b"ceci n'est pas une image", content_type="image/jpeg")
+        data = {"category": "depot_sauvage", **POINT, **DEVICE, "photo": fake}
+        response = self.client.post(f"{API}/reports", data, format="multipart")
+        self.assertEqual(response.status_code, 415)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_INVALID")
+        self.assertEqual(Report.objects.count(), 0)
+
+    def test_photo_reused_is_rejected(self):
+        # le premier envoi passe, le second avec la même photo est refusé
+        self.assertEqual(self.post_report().status_code, 201)
+        response = self.post_report()  # même photo (même couleur, même taille)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "PHOTO_REUSED")
+        self.assertEqual(Report.objects.count(), 1)
 
     def test_missing_fields_give_invalid_input(self):
         response = self.client.post(f"{API}/reports", {"category": "depot_sauvage"}, format="multipart")

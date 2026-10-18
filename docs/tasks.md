@@ -13,15 +13,15 @@ Le découpage en petites tâches avec prompts de départ est dans `docs/backlog.
 - 35 tests : `docker compose exec web python manage.py test`.
 
 ## Équipe 4 · `reports/checks.py`
-- [ ] Vérification 2 · `check_photo_file` : JPEG/PNG/WebP, 8 Mo max, fichier lisible → `PHOTO_INVALID`
-- [ ] Vérification 3 · `check_gps_accuracy` : précision ≤ 50 m → `GPS_INACCURATE`
-- [ ] Vérification 4 · `check_zone` : téléphone dans Cotonou → `OUT_OF_ZONE` (outil prêt : `reports.geo.is_in_cotonou`)
-- [ ] Un test par vérification dans `reports/tests.py` (copier `test_too_far_is_rejected…`)
-- [ ] Charger le vrai polygone de Cotonou (`load_zone`) si quelqu'un fournit un GeoJSON
+- [x] Vérification 2 · `check_photo_file` : JPEG/PNG/WebP, 8 Mo max, fichier lisible → `PHOTO_INVALID`
+- [x] Vérification 3 · `check_gps_accuracy` : précision ≤ 50 m → `GPS_INACCURATE`
+- [x] Vérification 4 · `check_zone` : téléphone dans Cotonou → `OUT_OF_ZONE` (outil prêt : `reports.geo.is_in_cotonou`)
+- [x] Un test par vérification dans `reports/tests.py` (copier `test_too_far_is_rejected…`)
+- [x] Charger le vrai polygone de Cotonou (`load_zone`) si quelqu'un fournit un GeoJSON
 - [ ] `models.py` : seule équipe autorisée à modifier ; ajouter ici les champs demandés par les autres équipes
 
 ## Équipe 5 · `verification/`
-- [ ] Vérification 6 · `photo_hash.check_photo_not_reused` → `PHOTO_REUSED`
+- [x] Vérification 6 · `photo_hash.check_photo_not_reused` → `PHOTO_REUSED`
 - [ ] Vérification 8 · `duplicates.check_duplicate` : renseigner `sub.duplicate_of` (le « +1 » est géré par `services.py`)
 - [ ] Vérification 7 · `vision.check_photo_content` : verdict (simulé d'abord), `PHOTO_SCREENSHOT`, `PHOTO_MISMATCH`
 - [ ] Brancher le vrai modèle dans `LiveVisionClient` (`VERIFY_MODE=live`), JSON strict, délai maximal
